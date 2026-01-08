@@ -24,27 +24,15 @@
             },
             "external_specs": [
                 {
-                    "external_spec": "vLEI",
-                    "gh_page": "https://henkvancann.github.io/vlei-glossary/",
-                    "url": "https://github.com/henkvancann/vlei-glossary",
+                    "external_spec": "ExtRef1",
+                    "gh_page": "https://trustoverip.github.io/spec-up-t-demo-external-ref-1/",
+                    "url": "https://github.com/trustoverip/spec-up-t-demo-external-ref-1",
                     "terms_dir": "spec/terms-definitions"
                 },
                 {
-                    "external_spec": "KERISuite",
-                    "gh_page": "https://weboftrust.github.io/kerisuite-glossary/",
-                    "url": "https://github.com/weboftrust/kerisuite-glossary",
-                    "terms_dir": "spec/terms-definitions"
-                },
-                {
-                    "external_spec": "ToIP",
-                    "gh_page": "https://glossary.trustoverip.org/",
-                    "url": "https://github.com/trustoverip/ctwg-main-glossary",
-                    "terms_dir": "spec/terms-definitions"
-                },
-                {
-                    "external_spec": "GenIT",
-                    "gh_page": "https://trustoverip.github.io/ctwg-general-glossary/",
-                    "url": "https://github.com/trustoverip/ctwg-general-glossary",
+                    "external_spec": "ExtRef2",
+                    "gh_page": "https://trustoverip.github.io/spec-up-t-demo-external-ref-2/",
+                    "url": "https://github.com/trustoverip/spec-up-t-demo-external-ref-2",
                     "terms_dir": "spec/terms-definitions"
                 }
             ],
