@@ -20,8 +20,8 @@
     align-items: center;
     justify-content: center;
     position: relative;
-    margin-left: 0.25em;
-    font-size: 0.9em;
+    margin-left: 0.5em;
+    font-size: 1.1em;
     vertical-align: middle;
     cursor: help;
     z-index: 10;
@@ -29,10 +29,19 @@
 
 /**
  * The icon/emoji display
+ * Made larger and more prominent with circular background
  */
 .external-ref-validation-indicator .indicator-icon {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.8em;
+    height: 1.8em;
+    border-radius: 50%;
     line-height: 1;
+    font-size: 1.2em;
+    font-weight: bold;
+    transition: all 0.2s ease-in-out;
 }
 
 /* ===== Status-specific Styles ===== */
@@ -42,15 +51,21 @@
  * Draws attention to broken references
  */
 .external-ref-validation-indicator.external-ref-missing .indicator-icon {
-    filter: drop-shadow(0 0 2px rgba(255, 0, 0, 0.5));
+    background-color: #dc3545;
+    color: white;
+    box-shadow: 0 0 8px rgba(220, 53, 69, 0.6), inset 0 0 4px rgba(0, 0, 0, 0.2);
+    animation: pulse-red 2s infinite;
 }
 
 /**
- * Changed definition indicator - yellow/attention styling
+ * Changed definition indicator - orange/red styling
  * Indicates content drift that may need review
  */
 .external-ref-validation-indicator.external-ref-changed .indicator-icon {
-    filter: drop-shadow(0 0 2px rgba(255, 165, 0, 0.5));
+    background-color: #ff6b35;
+    color: white;
+    box-shadow: 0 0 10px rgba(255, 107, 53, 0.7), inset 0 0 4px rgba(0, 0, 0, 0.2);
+    animation: pulse-orange 2s infinite;
 }
 
 /**
@@ -58,7 +73,9 @@
  * Shows that validation could not be performed
  */
 .external-ref-validation-indicator.external-ref-error .indicator-icon {
-    opacity: 0.6;
+    background-color: #6c757d;
+    color: white;
+    box-shadow: 0 0 6px rgba(108, 117, 125, 0.5);
 }
 
 /**
@@ -66,7 +83,39 @@
  * Confirms the reference is current (optional visibility)
  */
 .external-ref-validation-indicator.external-ref-valid .indicator-icon {
-    opacity: 0.7;
+    background-color: #28a745;
+    color: white;
+    opacity: 1;
+    box-shadow: 0 0 6px rgba(40, 167, 69, 0.4);
+}
+
+/**
+ * Hover effect - make it even more prominent on hover
+ */
+.external-ref-validation-indicator:hover .indicator-icon {
+    transform: scale(1.15);
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.3);
+}
+
+/**
+ * Pulse animations for attention-grabbing indicators
+ */
+@keyframes pulse-red {
+    0%, 100% {
+        box-shadow: 0 0 8px rgba(220, 53, 69, 0.6), inset 0 0 4px rgba(0, 0, 0, 0.2);
+    }
+    50% {
+        box-shadow: 0 0 15px rgba(220, 53, 69, 0.9), inset 0 0 4px rgba(0, 0, 0, 0.2);
+    }
+}
+
+@keyframes pulse-orange {
+    0%, 100% {
+        box-shadow: 0 0 10px rgba(255, 107, 53, 0.7), inset 0 0 4px rgba(0, 0, 0, 0.2);
+    }
+    50% {
+        box-shadow: 0 0 18px rgba(255, 107, 53, 1), inset 0 0 4px rgba(0, 0, 0, 0.2);
+    }
 }
 
 /* ===== Details Popup ===== */
