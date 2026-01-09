@@ -139,6 +139,19 @@
     border-bottom: 1px solid var(--bs-border-color, #dee2e6);
 }
 
+/**
+ * Similarity score display
+ */
+.validation-similarity {
+    font-size: 0.75rem;
+    margin-bottom: 8px;
+    padding: 4px 8px;
+    background: rgba(255, 193, 7, 0.1);
+    border-radius: 4px;
+    text-align: center;
+    font-weight: 500;
+}
+
 /* Missing indicator header - red theme */
 .external-ref-missing .validation-details-header {
     color: var(--bs-danger, #dc3545);

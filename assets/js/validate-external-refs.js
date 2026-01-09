@@ -37,7 +37,13 @@ const VALIDATOR_CONFIG = {
     // Whether to show valid indicators (can be noisy)
     showValidIndicators: false,
     // Cache timeout in milliseconds (5 minutes)
-    cacheTimeout: 5 * 60 * 1000
+    cacheTimeout: 5 * 60 * 1000,
+    // Similarity threshold (0-1) - only show changed indicator if similarity is below this
+    // 0.95 means content must be at least 95% similar to be considered unchanged
+    // This prevents false positives from minor formatting differences
+    similarityThreshold: 0.95,
+    // Enable debug logging to console (set to true to see comparison details)
+    debug: true
 };
 
 /**
@@ -48,7 +54,7 @@ const VALIDATOR_CONFIG = {
 const fetchCache = new Map();
 
 /**
- * Normalizes HTML content for comparison by removing extra whitespace and converting to lowercase
+ * Normalizes HTML content for comparison by extracting text and normalizing whitespace
  * This helps compare definitions that might have minor formatting differences
  * 
  * @param {string} html - The HTML content to normalize
@@ -62,10 +68,75 @@ function normalizeContent(html) {
     tempDiv.innerHTML = html;
     
     // Get text content and normalize whitespace
-    return tempDiv.textContent
+    let text = tempDiv.textContent || tempDiv.innerText || '';
+    
+    // Normalize the text
+    text = text
         .toLowerCase()
-        .replace(/\s+/g, ' ')
+        .replace(/[\u200B-\u200D\uFEFF]/g, '') // Remove zero-width spaces
+        .replace(/\s+/g, ' ') // Collapse all whitespace to single spaces
+        .replace(/\s*([.,;:!?])\s*/g, '$1 ') // Normalize punctuation spacing
         .trim();
+    
+    return text;
+}
+
+/**
+ * Calculates the similarity between two text strings
+ * Returns a value between 0 (completely different) and 1 (identical)
+ * 
+ * @param {string} str1 - First string
+ * @param {string} str2 - Second string
+ * @returns {number} - Similarity score between 0 and 1
+ */
+function calculateSimilarity(str1, str2) {
+    if (str1 === str2) return 1;
+    if (!str1 || !str2) return 0;
+    
+    const longer = str1.length > str2.length ? str1 : str2;
+    const shorter = str1.length > str2.length ? str2 : str1;
+    
+    if (longer.length === 0) return 1;
+    
+    // Calculate Levenshtein distance
+    const editDistance = levenshteinDistance(shorter, longer);
+    return (longer.length - editDistance) / longer.length;
+}
+
+/**
+ * Calculates the Levenshtein distance between two strings
+ * This measures the minimum number of single-character edits needed
+ * 
+ * @param {string} str1 - First string
+ * @param {string} str2 - Second string
+ * @returns {number} - Edit distance
+ */
+function levenshteinDistance(str1, str2) {
+    const matrix = [];
+    
+    for (let i = 0; i <= str2.length; i++) {
+        matrix[i] = [i];
+    }
+    
+    for (let j = 0; j <= str1.length; j++) {
+        matrix[0][j] = j;
+    }
+    
+    for (let i = 1; i <= str2.length; i++) {
+        for (let j = 1; j <= str1.length; j++) {
+            if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+                matrix[i][j] = matrix[i - 1][j - 1];
+            } else {
+                matrix[i][j] = Math.min(
+                    matrix[i - 1][j - 1] + 1,
+                    matrix[i][j - 1] + 1,
+                    matrix[i - 1][j] + 1
+                );
+            }
+        }
+    }
+    
+    return matrix[str2.length][str1.length];
 }
 
 /**
@@ -94,19 +165,28 @@ function extractTermsFromHtml(html) {
         // Extract just the term name (last part after the last colon)
         const termName = termId.split(':').pop();
         
-        // Get the definition content from the following dd element(s)
+        // Get the definition content from ALL following dd element(s)
+        // NOTE: We collect ALL dd elements to match what's cached in allXTrefs
+        // Terms can have multiple dd blocks for extended definitions
+        const ddElements = [];
         let definitionContent = '';
         let rawContent = '';
         let sibling = dt.nextElementSibling;
         
-        // Collect all consecutive dd elements (there can be multiple)
+        // Collect all consecutive dd elements, skipping meta-info wrappers
         while (sibling && sibling.tagName === 'DD') {
             // Skip meta-info wrapper elements for trefs
             if (!sibling.classList.contains('meta-info-content-wrapper')) {
-                rawContent += sibling.outerHTML;
-                definitionContent += sibling.textContent + ' ';
+                ddElements.push(sibling);
             }
             sibling = sibling.nextElementSibling;
+        }
+        
+        if (ddElements.length > 0) {
+            // Combine all dd elements' raw HTML
+            rawContent = ddElements.map(dd => dd.outerHTML).join('\n');
+            // Combine all dd elements' text content
+            definitionContent = ddElements.map(dd => dd.textContent).join('\n');
         }
         
         terms.set(termName.toLowerCase(), {
@@ -164,6 +244,32 @@ async function fetchExternalSpec(ghPageUrl, specName) {
 }
 
 /**
+ * Finds and extracts the differences between two texts
+ * Returns objects with the unique parts from each text
+ * 
+ * @param {string} text1 - First text (cached)
+ * @param {string} text2 - Second text (live)
+ * @returns {Object} - Object with oldUnique and newUnique properties
+ */
+function findTextDifferences(text1, text2) {
+    // Split texts into lines for comparison
+    const lines1 = text1.split(/\n+/).filter(line => line.trim());
+    const lines2 = text2.split(/\n+/).filter(line => line.trim());
+    
+    // Find lines that are only in text1 (removed)
+    const oldUnique = lines1.filter(line => !lines2.includes(line));
+    
+    // Find lines that are only in text2 (added)
+    const newUnique = lines2.filter(line => !lines1.includes(line));
+    
+    return {
+        oldUnique: oldUnique.length > 0 ? oldUnique.join('\n') : '(no removed content)',
+        newUnique: newUnique.length > 0 ? newUnique.join('\n') : '(no added content)',
+        hasDifferences: oldUnique.length > 0 || newUnique.length > 0
+    };
+}
+
+/**
  * Creates a validation indicator element to display next to a reference
  * 
  * @param {string} type - The type of indicator: 'missing', 'changed', 'valid', or 'error'
@@ -194,22 +300,48 @@ function createIndicator(type, details = {}) {
     if (type === 'changed' && details.oldContent && details.newContent) {
         indicator.classList.add('has-details');
         
+        // Find the actual differences between old and new content
+        const diff = findTextDifferences(details.oldContent, details.newContent);
+        
         const detailsDiv = document.createElement('div');
         detailsDiv.classList.add('validation-details');
-        detailsDiv.innerHTML = `
-            <div class="validation-details-header">Definition Changed</div>
-            <div class="validation-details-section">
-                <strong>Cached (at build time):</strong>
-                <div class="validation-content-old">${escapeHtml(truncateText(details.oldContent, 200))}</div>
-            </div>
-            <div class="validation-details-section">
-                <strong>Current (live):</strong>
-                <div class="validation-content-new">${escapeHtml(truncateText(details.newContent, 200))}</div>
-            </div>
-            <div class="validation-details-footer">
-                <em>Rebuild the spec to update the definition</em>
-            </div>
-        `;
+        const similarityText = details.similarity ? `<div class="validation-similarity">Similarity: ${details.similarity}</div>` : '';
+        
+        // Show only the differences if they exist, otherwise show full content
+        if (diff.hasDifferences) {
+            detailsDiv.innerHTML = `
+                <div class="validation-details-header">Definition Changed - Showing Differences</div>
+                ${similarityText}
+                <div class="validation-details-section">
+                    <strong>Removed from cached version:</strong>
+                    <div class="validation-content-old">${escapeHtml(truncateText(diff.oldUnique, 300))}</div>
+                </div>
+                <div class="validation-details-section">
+                    <strong>Added in live version:</strong>
+                    <div class="validation-content-new">${escapeHtml(truncateText(diff.newUnique, 300))}</div>
+                </div>
+                <div class="validation-details-footer">
+                    <em>Rebuild the spec to update the definition</em>
+                </div>
+            `;
+        } else {
+            // Fallback to showing full content if diff detection fails
+            detailsDiv.innerHTML = `
+                <div class="validation-details-header">Definition Changed</div>
+                ${similarityText}
+                <div class="validation-details-section">
+                    <strong>Cached (at build time):</strong>
+                    <div class="validation-content-old">${escapeHtml(truncateText(details.oldContent, 500))}</div>
+                </div>
+                <div class="validation-details-section">
+                    <strong>Current (live):</strong>
+                    <div class="validation-content-new">${escapeHtml(truncateText(details.newContent, 500))}</div>
+                </div>
+                <div class="validation-details-footer">
+                    <em>Rebuild the spec to update the definition</em>
+                </div>
+            `;
+        }
         indicator.appendChild(detailsDiv);
     }
     
@@ -294,14 +426,37 @@ function validateXref(element, liveData, cachedXtref) {
         return;
     }
     
-    // Compare content
+    // Compare content using similarity threshold to avoid false positives
+    // Both cached and live content are reprocessed through markdown-it for consistency
     const cachedNormalized = normalizeContent(cachedXtref.content);
     const liveNormalized = normalizeContent(liveTerm.rawContent);
     
-    if (cachedNormalized !== liveNormalized) {
+    // Debug logging if enabled
+    if (VALIDATOR_CONFIG.debug) {
+        console.log('[External Ref Validator] Comparing xref:', cachedXtref.term);
+        console.log('  Cached length:', cachedNormalized.length, 'chars');
+        console.log('  Live length:  ', liveNormalized.length, 'chars');
+        console.log('  Cached:', cachedNormalized.substring(0, 100));
+        console.log('  Live:  ', liveNormalized.substring(0, 100));
+        if (cachedNormalized.length !== liveNormalized.length) {
+            console.log('  Length diff:', Math.abs(cachedNormalized.length - liveNormalized.length), 'chars');
+        }
+    }
+    
+    // Calculate similarity between cached and live content
+    const similarity = calculateSimilarity(cachedNormalized, liveNormalized);
+    
+    // Debug logging for similarity
+    if (VALIDATOR_CONFIG.debug) {
+        console.log('  Similarity:', (similarity * 100).toFixed(2) + '%');
+    }
+    
+    // Only show changed indicator if similarity is below threshold (significant change)
+    if (similarity < VALIDATOR_CONFIG.similarityThreshold) {
         const indicator = createIndicator('changed', {
             oldContent: cachedXtref.content ? extractTextFromHtml(cachedXtref.content) : 'No cached content',
-            newContent: liveTerm.content || 'No live content'
+            newContent: liveTerm.content || 'No live content',
+            similarity: (similarity * 100).toFixed(1) + '%'
         });
         insertIndicatorAfterElement(element, indicator);
         return;
@@ -349,14 +504,37 @@ function validateTref(element, liveData, cachedXtref) {
         return;
     }
     
-    // Compare content
+    // Compare content using similarity threshold to avoid false positives
+    // Both cached and live content are reprocessed through markdown-it for consistency
     const cachedNormalized = normalizeContent(cachedXtref.content);
     const liveNormalized = normalizeContent(liveTerm.rawContent);
     
-    if (cachedNormalized !== liveNormalized) {
+    // Debug logging if enabled
+    if (VALIDATOR_CONFIG.debug) {
+        console.log('[External Ref Validator] Comparing tref:', cachedXtref.term);
+        console.log('  Cached length:', cachedNormalized.length, 'chars');
+        console.log('  Live length:  ', liveNormalized.length, 'chars');
+        console.log('  Cached:', cachedNormalized.substring(0, 100));
+        console.log('  Live:  ', liveNormalized.substring(0, 100));
+        if (cachedNormalized.length !== liveNormalized.length) {
+            console.log('  Length diff:', Math.abs(cachedNormalized.length - liveNormalized.length), 'chars');
+        }
+    }
+    
+    // Calculate similarity between cached and live content
+    const similarity = calculateSimilarity(cachedNormalized, liveNormalized);
+    
+    // Debug logging for similarity
+    if (VALIDATOR_CONFIG.debug) {
+        console.log('  Similarity:', (similarity * 100).toFixed(2) + '%');
+    }
+    
+    // Only show changed indicator if similarity is below threshold (significant change)
+    if (similarity < VALIDATOR_CONFIG.similarityThreshold) {
         const indicator = createIndicator('changed', {
             oldContent: cachedXtref.content ? extractTextFromHtml(cachedXtref.content) : 'No cached content',
-            newContent: liveTerm.content || 'No live content'
+            newContent: liveTerm.content || 'No live content',
+            similarity: (similarity * 100).toFixed(1) + '%'
         });
         insertIndicatorIntoTref(element, indicator);
         return;

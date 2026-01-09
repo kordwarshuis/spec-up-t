@@ -56,15 +56,21 @@ describe('validate-external-refs', () => {
         /**
          * Tests normalization of HTML content for comparison
          * This replicates the normalizeContent function logic
+         * Note: In production, markdown-it processing is included
          */
         function normalizeContent(html) {
             if (!html) return '';
+            // In tests, we skip markdown-it since it may not be available
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = html;
-            return tempDiv.textContent
+            let text = tempDiv.textContent
                 .toLowerCase()
                 .replace(/\s+/g, ' ')
                 .trim();
+            text = text.replace(/[\u200B-\u200D\uFEFF]/g, '');
+            text = text.replace(/\s*([.,;:!?])\s*/g, '$1 ');
+            text = text.trim();
+            return text;
         }
 
         // Test: Does normalization handle empty input?
@@ -91,6 +97,19 @@ describe('validate-external-refs', () => {
             const html = '<p>UPPERCASE and MixedCase</p>';
             expect(normalizeContent(html)).toBe('uppercase and mixedcase');
         });
+
+        // Test: Does normalization handle punctuation spacing?
+        it('should normalize punctuation spacing', () => {
+            const html = '<p>Word,word  .  another</p>';
+            expect(normalizeContent(html)).toBe('word, word. another');
+        });
+
+        // Test: Does normalization handle identical HTML with different formatting?
+        it('should normalize identically formatted content', () => {
+            const html1 = '<p>This is a test.</p>';
+            const html2 = '<p>This  is  a  test.</p>';
+            expect(normalizeContent(html1)).toBe(normalizeContent(html2));
+        });
     });
 
     describe('extractTermsFromHtml helper logic', () => {
@@ -111,16 +130,25 @@ describe('validate-external-refs', () => {
                 const termId = termSpan.id;
                 const termName = termId.split(':').pop();
                 
+                // Collect ALL consecutive dd elements (not just the first one)
+                const ddElements = [];
                 let definitionContent = '';
                 let rawContent = '';
                 let sibling = dt.nextElementSibling;
                 
+                // Collect all consecutive dd elements, skipping meta-info wrappers
                 while (sibling && sibling.tagName === 'DD') {
                     if (!sibling.classList.contains('meta-info-content-wrapper')) {
-                        rawContent += sibling.outerHTML;
-                        definitionContent += sibling.textContent + ' ';
+                        ddElements.push(sibling);
                     }
                     sibling = sibling.nextElementSibling;
+                }
+                
+                if (ddElements.length > 0) {
+                    // Combine all dd elements' raw HTML
+                    rawContent = ddElements.map(dd => dd.outerHTML).join('\n');
+                    // Combine all dd elements' text content
+                    definitionContent = ddElements.map(dd => dd.textContent).join('\n');
                 }
                 
                 terms.set(termName.toLowerCase(), {
@@ -190,8 +218,8 @@ describe('validate-external-refs', () => {
             expect(term.content).toContain('Real definition.');
         });
 
-        // Test: Does extraction handle multiple dd elements?
-        it('should concatenate multiple dd elements', () => {
+        // Test: Does extraction include all consecutive dd elements?
+        it('should extract all consecutive dd elements', () => {
             const html = `
                 <dl class="terms-and-definitions-list">
                     <dt><span id="term:multi-dd">multi-dd</span></dt>
@@ -202,7 +230,7 @@ describe('validate-external-refs', () => {
             const terms = extractTermsFromHtml(html);
             const term = terms.get('multi-dd');
             expect(term.content).toContain('First part.');
-            expect(term.content).toContain('Second part.');
+            expect(term.content).toContain('Second part.'); // Should include all dd elements
         });
     });
 
@@ -284,6 +312,121 @@ describe('validate-external-refs', () => {
             const iconSpan = indicator.querySelector('.indicator-icon');
             expect(iconSpan).not.toBeNull();
             expect(iconSpan.textContent).toBe('🔄');
+        });
+    });
+
+    describe('truncateText helper logic', () => {
+        function truncateText(text, maxLength) {
+            if (!text || text.length <= maxLength) return text || '';
+            return text.substring(0, maxLength) + '...';
+        }
+
+        // Test: Does truncation handle empty input?
+        it('should return empty string for null or undefined', () => {
+            expect(truncateText(null, 10)).toBe('');
+            expect(truncateText(undefined, 10)).toBe('');
+        });
+
+        // Test: Does truncation preserve short text?
+        it('should not truncate text shorter than max length', () => {
+            expect(truncateText('short', 10)).toBe('short');
+        });
+
+        // Test: Does truncation work on long text?
+        it('should truncate text longer than max length', () => {
+            expect(truncateText('this is a long text', 10)).toBe('this is a ...');
+        });
+
+        // Test: Does truncation handle exact length?
+        it('should not truncate text exactly at max length', () => {
+            expect(truncateText('exactly10!', 10)).toBe('exactly10!');
+        });
+    });
+
+    describe('similarity calculation logic', () => {
+        /**
+         * Tests similarity calculation between two strings
+         */
+        function levenshteinDistance(str1, str2) {
+            const matrix = [];
+            
+            for (let i = 0; i <= str2.length; i++) {
+                matrix[i] = [i];
+            }
+            
+            for (let j = 0; j <= str1.length; j++) {
+                matrix[0][j] = j;
+            }
+            
+            for (let i = 1; i <= str2.length; i++) {
+                for (let j = 1; j <= str1.length; j++) {
+                    if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+                        matrix[i][j] = matrix[i - 1][j - 1];
+                    } else {
+                        matrix[i][j] = Math.min(
+                            matrix[i - 1][j - 1] + 1,
+                            matrix[i][j - 1] + 1,
+                            matrix[i - 1][j] + 1
+                        );
+                    }
+                }
+            }
+            
+            return matrix[str2.length][str1.length];
+        }
+
+        function calculateSimilarity(str1, str2) {
+            if (str1 === str2) return 1;
+            if (!str1 || !str2) return 0;
+            
+            const longer = str1.length > str2.length ? str1 : str2;
+            const shorter = str1.length > str2.length ? str2 : str1;
+            
+            if (longer.length === 0) return 1;
+            
+            const editDistance = levenshteinDistance(shorter, longer);
+            return (longer.length - editDistance) / longer.length;
+        }
+
+        // Test: Do identical strings have 100% similarity?
+        it('should return 1 for identical strings', () => {
+            expect(calculateSimilarity('test', 'test')).toBe(1);
+            expect(calculateSimilarity('hello world', 'hello world')).toBe(1);
+        });
+
+        // Test: Do completely different strings have low similarity?
+        it('should return low similarity for very different strings', () => {
+            const similarity = calculateSimilarity('abc', 'xyz');
+            expect(similarity).toBeLessThan(0.5);
+        });
+
+        // Test: Does similarity work for slight variations?
+        it('should return high similarity for slight variations', () => {
+            const similarity = calculateSimilarity('hello world', 'hello world!');
+            expect(similarity).toBeGreaterThan(0.9);
+        });
+
+        // Test: Does similarity handle empty strings?
+        it('should return 0 for empty strings', () => {
+            expect(calculateSimilarity('', '')).toBe(1); // Both empty is 100% similar
+            expect(calculateSimilarity('test', '')).toBe(0);
+            expect(calculateSimilarity('', 'test')).toBe(0);
+        });
+
+        // Test: Does similarity threshold of 95% catch meaningful changes?
+        it('should detect significant changes below 95% threshold', () => {
+            const original = 'This is a long definition with many words about something important.';
+            const changed = 'This is completely different content about other things.';
+            const similarity = calculateSimilarity(original, changed);
+            expect(similarity).toBeLessThan(0.95); // Should trigger change indicator
+        });
+
+        // Test: Does similarity threshold of 95% ignore minor formatting?
+        it('should ignore minor formatting differences above 95% threshold', () => {
+            const original = 'This is a definition.';
+            const formatted = 'This is a definition. '; // Extra space
+            const similarity = calculateSimilarity(original.toLowerCase().trim(), formatted.toLowerCase().trim());
+            expect(similarity).toBeGreaterThanOrEqual(0.95); // Should NOT trigger change indicator
         });
     });
 
