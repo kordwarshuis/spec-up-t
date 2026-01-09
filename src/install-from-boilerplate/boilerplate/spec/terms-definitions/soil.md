@@ -4,8 +4,10 @@
 
 ~ Refs examples: [[ref: Compost]], [[ref: Mulch]], [[ref: Fertilizer]].
 
-~ Xref example: [[xref: KERISuite, composability ]]
+~ Xref examples from external gardening glossaries: 
+~ - From ExtRef1 (greenhouse focus): [[xref: ExtRef1, greenhouse]], [[xref: ExtRef1, irrigation]]
+~ - From ExtRef2 (lifecycle focus): [[xref: ExtRef2, dormancy]], [[xref: ExtRef2, propagation]]
 
-~ This Xref example does not work: [[xref: does-not-exist, Foo]]
+~ Note: The term "soil" exists in ExtRef1 and ExtRef2 with different definitions focused on their respective themes.
 
 ~ Soil quality affects water retention, nutrient availability, and plant health. Amending soil with compost or mulch can improve its structure and fertility. Fertilizer may be added to supplement nutrients as needed.

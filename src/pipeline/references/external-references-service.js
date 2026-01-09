@@ -19,7 +19,7 @@ function validateReferences(references, definitions, render) {
   if (unresolvedRefs.length > 0) {
     Logger.warn(`Unresolved References: ${unresolvedRefs.join(',')}`, {
       context: 'These terms are referenced in your spec but not defined',
-      hint: 'Add [[def: term]] definitions for these terms in your terminology files, or check for typos in [[ref: term]] references',
+      hint: 'Add [[def: term]] definitions or [[tref: repo, term]] transclusion for these terms in your terminology files, or check for typos in [[ref: term]] references',
       details: `Count: ${unresolvedRefs.length} unresolved term(s)`
     });
   }
@@ -281,10 +281,18 @@ function extractTermsFromHtml(externalSpec, html) {
           const classArray = dtClasses ? dtClasses.split(/\s+/).filter(Boolean) : [];
           const termClasses = classArray.filter(cls => cls === 'term-local' || cls === 'term-external');
 
-          const dd = $termElement.next('dd');
+          // Extract ALL consecutive <dd> elements following this <dt>
+          // Terms can have multiple <dd> blocks for extended definitions
+          const ddElements = [];
+          let nextElement = $termElement.next();
+          while (nextElement.length > 0 && nextElement[0].tagName === 'dd') {
+            ddElements.push(nextElement);
+            nextElement = nextElement.next();
+          }
 
-          if (dd.length > 0) {
-            const ddContent = $.html(dd); // Store the complete DD content once
+          if (ddElements.length > 0) {
+            // Combine all <dd> elements into a single HTML string
+            const ddContent = ddElements.map(dd => $.html(dd)).join('\n'); // Store the complete DD content
 
             // Create a term object for each ID found in this dt element
             // This handles cases where one term definition has multiple aliases

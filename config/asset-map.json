@@ -29,6 +29,7 @@
       "assets/css/horizontal-scroll-hint.css",
       "assets/css/highlight-heading-plus-sibling-nodes.css",
       "assets/css/counter.css",
+      "assets/css/validate-external-refs.css",
       
       "assets/css/index.css"
     ],
@@ -84,6 +85,7 @@
       "assets/js/add-bootstrap-classes-to-images.js",
       "assets/js/image-full-size.js",
       "assets/js/highlight-heading-plus-sibling-nodes.js",
+      "assets/js/validate-external-refs.js",
       "assets/js/embedded-libraries/bootstrap.bundle.min.js"
     ]
   }
