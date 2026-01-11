@@ -655,6 +655,8 @@ function insertIndicatorAfterElement(element, indicator) {
         return; // Already has an indicator
     }
     element.insertAdjacentElement('afterend', indicator);
+    // Attach click handler if this indicator has details
+    attachClickHandler(indicator);
 }
 
 /**
@@ -676,7 +678,47 @@ function insertIndicatorIntoTref(dtElement, indicator) {
     }
     
     termSpan.appendChild(indicator);
+    // Attach click handler if this indicator has details
+    attachClickHandler(indicator);
 }
+
+/**
+ * Attaches click handlers to validation indicators for toggling details visibility
+ * Closes details when clicking outside the indicator
+ * 
+ * @param {HTMLElement} indicator - The indicator element with details
+ */
+function attachClickHandler(indicator) {
+    if (!indicator.classList.contains('has-details')) {
+        return; // Only attach handlers to indicators with details
+    }
+    
+    /**
+     * Toggle the active state when clicking the indicator
+     */
+    indicator.addEventListener('click', (event) => {
+        event.stopPropagation();
+        // Close all other open indicators
+        const allActive = document.querySelectorAll('.external-ref-validation-indicator.active');
+        for (const el of allActive) {
+            if (el !== indicator) {
+                el.classList.remove('active');
+            }
+        }
+        // Toggle this indicator
+        indicator.classList.toggle('active');
+    });
+}
+
+/**
+ * Close all open indicator details when clicking anywhere on the document
+ */
+document.addEventListener('click', () => {
+    const allActive = document.querySelectorAll('.external-ref-validation-indicator.active');
+    for (const indicator of allActive) {
+        indicator.classList.remove('active');
+    }
+});
 
 /**
  * Collects all unique external specifications from the page

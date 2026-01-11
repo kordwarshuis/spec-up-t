@@ -171,10 +171,9 @@
 }
 
 /**
- * Show details on hover
+ * Show details on click (when the active class is applied via JavaScript)
  */
-.external-ref-validation-indicator.has-details:hover .validation-details,
-.external-ref-validation-indicator.has-details:focus .validation-details {
+.external-ref-validation-indicator.has-details.active .validation-details {
     display: block;
 }
 
