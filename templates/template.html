@@ -137,15 +137,6 @@
         <!-- Right-aligned elements -->
         <div class="d-flex align-items-center service-menu d-print-none">
 
-            <!-- Settings side menu -->
-            <button id="repo_settings" class="btn btn-sm btn-outline-secondary ms-2" type="button"
-                data-bs-toggle="offcanvas" data-bs-target="#offcanvasSettings" aria-controls="offcanvasSettings">
-                <svg class="bi" width="1em" height="1em" aria-hidden="true">
-                    <use href="#gear-wide-connected"></use>
-                </svg>
-                <span class="visually-hidden">Settings</span>
-            </button>
-
             <!-- Dark / Light theme selector -->
             <div class="dropdown bd-mode-toggle">
                 <button
@@ -246,6 +237,16 @@
             </div>
         </div>
     </div>
+
+    <!-- Menu toggle button - hamburger icon fixed at right edge for slide-in panel -->
+    <button id="repo_settings" class="btn btn-sm btn-outline-secondary menu-toggle-btn d-print-none" type="button"
+        data-bs-toggle="offcanvas" data-bs-target="#offcanvasSettings" aria-controls="offcanvasSettings"
+        title="Open menu">
+        <svg class="bi" width="1.25em" height="1.25em" aria-hidden="true">
+            <use href="#list"></use>
+        </svg>
+        <span class="visually-hidden">Open menu</span>
+    </button>
 
     <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasSettings" aria-labelledby="offcanvasSettingsLabel">
         <div class="offcanvas-header">
