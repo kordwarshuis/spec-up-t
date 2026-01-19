@@ -1,4 +1,5 @@
 - All code will have to pass SonarQube analysis
+- Always choose native browser API's over another NPM package
 - Cognitive complexity should be kept ideally below 15
 - Remove code if possible, instead of adding code
 - If you create files, explain why they are not deleted, why they should stay, and how to use them
