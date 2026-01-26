@@ -10,7 +10,7 @@ const path = require('path');
 const { fetchExternalSpecs, validateReferences, mergeXrefTermsIntoAllXTrefs } = require('../references/external-references-service.js');
 const { processEscapedTags, restoreEscapedTags } = require('../preprocessing/escape-placeholder-utils.js');
 const { sortDefinitionTermsInHtml, fixDefinitionListStructure } = require('../postprocessing/definition-list-postprocessor.js');
-const { getGithubRepoInfo } = require('../../utils/git-info.js');
+const { getGithubRepoInfo, getCurrentBranch } = require('../../utils/git-info.js');
 const { templateTags } = require('../../utils/regex-patterns.js');
 
 const { createScriptElementWithXTrefDataForEmbeddingInHtml, applyReplacers } = require('./render-utils.js');
@@ -36,6 +36,9 @@ async function render(spec, assets, sharedVars, config, template, assetsGlobal, 
 
     // Add universal timestamp in ISO 8601 format for template injection
     const universalTimestamp = date.toISOString();
+
+    // Get the branch name from which the index.html was generated
+    const buildBranch = getCurrentBranch();
 
     // Read all markdown files into an array
     const docs = await Promise.all(
@@ -162,6 +165,7 @@ async function render(spec, assets, sharedVars, config, template, assetsGlobal, 
       externalSpecsList: externalSpecsList,
       currentDate: currentDate,
       universalTimestamp: universalTimestamp,
+      buildBranch: buildBranch,
       githubRepoInfo: getGithubRepoInfo(spec)
     });
 

@@ -9,11 +9,17 @@
 function addHrefToSnapshotLink() {
    const snapshotLink = document.querySelector('#snapshot-link-in-content');
 
-   // Get the current URL of the page
-   const currentUrl = window.location.href;
-
-   // Remove query parameters and hash for URL processing
-   const urlWithoutParams = currentUrl.split('?')[0].split('#')[0];
+   // Get the current URL of the page using URL object for proper parsing
+   let urlWithoutParams;
+   try {
+      const url = new URL(window.location.href);
+      // Get pathname and origin, ignoring query parameters and hash
+      urlWithoutParams = url.origin + url.pathname;
+   } catch (e) {
+      // Fallback to string manipulation if URL parsing fails
+      const currentUrl = window.location.href;
+      urlWithoutParams = currentUrl.split('?')[0].split('#')[0];
+   }
 
    // Regex to match up to and including the 'versions/' directory (if it exists)
    // Updated to handle file:// URLs and various protocols

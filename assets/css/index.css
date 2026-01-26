@@ -338,6 +338,42 @@ dd td img {
 /* End Custom styles for Bootstrap alerts */
 
 /* Custom menu button styles */
+
+/**
+ * Menu toggle button positioned at right edge of viewport
+ * Uses hamburger icon to clearly indicate slide-in menu functionality
+ * Fixed to right edge for intuitive association with offcanvas-end panel
+ */
+.menu-toggle-btn {
+  position: fixed !important;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1040; /* Below offcanvas (1045) but above content */
+  border-top-right-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+  border-right: none;
+  padding: 0.75rem 0.5rem !important;
+  margin: 0 !important;
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.15);
+  transition: opacity 0.15s ease-in-out;
+}
+
+/* Hide the fixed button when offcanvas is open (offcanvas adds backdrop to body) */
+body.offcanvas-backdrop .menu-toggle-btn,
+body:has(.offcanvas.show) .menu-toggle-btn,
+body:has(.offcanvas.showing) .menu-toggle-btn {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Hide in print mode */
+@media print {
+  .menu-toggle-btn {
+    display: none !important;
+  }
+}
+
 #offcanvasSettings .btn-menu-item {
   border-radius: unset;
   width: 100%;
