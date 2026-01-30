@@ -19,6 +19,9 @@ const defaultQuestions = [
     { field: 'title', prompt: 'Enter title', defaultValue: 'Spec-Up-T Starterpack' },
     { field: 'description', prompt: 'Enter description', defaultValue: 'Create technical specifications in markdown. Based on the original Spec-Up, extended with Terminology tooling' },
     { field: 'author', prompt: 'Enter author', defaultValue: 'Trust over IP Foundation' },
+    { field: 'logo', prompt: 'Enter logo URL', defaultValue: 'https://raw.githubusercontent.com/trustoverip/spec-up-t/refs/heads/master/src/install-from-boilerplate/boilerplate/static/logo.svg' },
+    { field: 'logo_link', prompt: 'Enter logo link URL', defaultValue: 'https://github.com/trustoverip/spec-up-t' },
+    { field: 'favicon', prompt: 'Enter favicon URL', defaultValue: 'https://raw.githubusercontent.com/trustoverip/spec-up-t/refs/heads/master/src/install-from-boilerplate/boilerplate/static/favicon.ico' },
     { field: 'account', prompt: 'Enter account', defaultValue: 'trustoverip' },
     { field: 'repo', prompt: 'Enter repo', defaultValue: 'spec-up-t-starter-pack' }
 ];
